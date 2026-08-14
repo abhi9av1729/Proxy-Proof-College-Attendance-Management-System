@@ -23,7 +23,7 @@
     ADMIN_PASS: 'Abhi9av@1729',
     REP_PASSCODE: '8899',
     STUDENT_PASSCODE: '1234',
-    WEBAPP_URL: ''
+    WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbzq-dUY3e88Jcs5M1ir3TUFpRDKhqDc-gBcQtkviPgzpMRsnAYozMrUNu5NCJEViFwP8Q/exec'
   };
 
   // Application State
@@ -991,6 +991,9 @@
       return;
     }
 
+    // First fetch live logs from sheet to sync cross-device scans
+    fetchTodayLogsFromSheet();
+
     const pendingLogs = state.logs.filter(log => log.status === 'pending');
     if (pendingLogs.length === 0) return;
 
@@ -1008,6 +1011,71 @@
         console.warn('Offline sync item failed:', err);
       });
     });
+  }
+
+  // --- LIVE CROSS-DEVICE LOG FETCHING ---
+  function fetchTodayLogsFromSheet() {
+    if (!state.webAppUrl || !navigator.onLine) return;
+
+    const fetchUrl = `${state.webAppUrl}?action=getTodayLogs&t=${Date.now()}`;
+
+    fetch(fetchUrl)
+      .then(res => res.json())
+      .then(data => {
+        // Sync ALL remote config & passcodes if changed on another device
+        if (data && data.repPasscode) {
+          state.repPasscode = data.repPasscode;
+          localStorage.setItem(STORAGE_KEYS.REP_PASSCODE, data.repPasscode);
+        }
+        if (data && data.studentPasscode) {
+          state.studentPasscode = data.studentPasscode;
+          localStorage.setItem(STORAGE_KEYS.STUDENT_PASSCODE, data.studentPasscode);
+        }
+        if (data && data.adminUser) {
+          state.adminUser = data.adminUser;
+          localStorage.setItem(STORAGE_KEYS.ADMIN_USER, data.adminUser);
+        }
+        if (data && data.adminPass) {
+          state.adminPass = data.adminPass;
+          localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, data.adminPass);
+        }
+        if (data && data.webAppUrl && data.webAppUrl !== state.webAppUrl) {
+          state.webAppUrl = data.webAppUrl;
+          localStorage.setItem(STORAGE_KEYS.WEBAPP_URL, data.webAppUrl);
+        }
+
+        if (data && data.logs && Array.isArray(data.logs)) {
+          const todayDateStr = new Date().toISOString().split('T')[0];
+          
+          data.logs.forEach(remoteLog => {
+            const exists = state.logs.some(localLog => 
+              localLog.regNo.toUpperCase() === remoteLog.regNo.toUpperCase() &&
+              (localLog.dateStr || localLog.timestamp.split('T')[0]) === (remoteLog.dateStr || todayDateStr)
+            );
+
+            if (!exists) {
+              state.logs.unshift({
+                id: 'remote-' + Math.random().toString(36).substring(2),
+                regNo: remoteLog.regNo.toUpperCase(),
+                name: remoteLog.name.toUpperCase(),
+                course: remoteLog.course,
+                section: remoteLog.section,
+                timestamp: remoteLog.timestamp || new Date().toISOString(),
+                dateStr: remoteLog.dateStr || todayDateStr,
+                timeStr: remoteLog.timeStr || '',
+                status: 'synced',
+                repId: 'REP-REMOTE'
+              });
+            }
+          });
+
+          saveLogs();
+          renderScannedLogs();
+        }
+      })
+      .catch(err => {
+        // Silently ignore CORS/network GET errors if plain text
+      });
   }
 
   function saveLogs() {
@@ -1130,7 +1198,24 @@
         localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, newPass);
       }
 
-      alert('Admin Configuration & Passcodes Saved to LocalStorage!');
+      // Sync ALL credentials & settings to cloud so ALL devices receive updates automatically
+      if (state.webAppUrl) {
+        fetch(state.webAppUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'saveConfig',
+            webAppUrl: state.webAppUrl,
+            repPasscode: state.repPasscode,
+            studentPasscode: state.studentPasscode,
+            adminUser: state.adminUser,
+            adminPass: state.adminPass
+          })
+        }).catch(err => console.warn('Cloud total config sync failed:', err));
+      }
+
+      alert('Admin Configuration & Credentials Saved Globally Across All Devices!');
       closeModal('admin-modal');
     });
 

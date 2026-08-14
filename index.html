@@ -535,22 +535,31 @@ function doPost(e) {
       data = e.parameter;
     }
     
+    // Save ALL Config & Credentials globally across all devices
+    if (data.action === "saveConfig") {
+      var props = PropertiesService.getScriptProperties();
+      if (data.webAppUrl) props.setProperty("WEBAPP_URL", String(data.webAppUrl));
+      if (data.repPasscode) props.setProperty("REP_PASSCODE", String(data.repPasscode));
+      if (data.studentPasscode) props.setProperty("STUDENT_PASSCODE", String(data.studentPasscode));
+      if (data.adminUser) props.setProperty("ADMIN_USER", String(data.adminUser));
+      if (data.adminPass) props.setProperty("ADMIN_PASS", String(data.adminPass));
+      return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     if (!ss) {
       return ContentService.createTextOutput(JSON.stringify({
         result: "error", 
-        message: "Spreadsheet not found. Open script via Extensions > Apps Script inside Google Sheet."
+        message: "Spreadsheet not found."
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Get the very 1st sheet tab safely (avoids null tab name errors)
     var sheet = ss.getSheets()[0];
-    
     var now = new Date();
     var dateStr = data.dateStr || Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
     var timeStr = data.timeStr || Utilities.formatDate(now, Session.getScriptTimeZone(), "HH:mm:ss");
     
-    // Append row to columns A-F: Date | Time | Registration No | Student Name | Course | Section
     sheet.appendRow([
       dateStr,
       timeStr,
@@ -564,6 +573,56 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({result: "error", message: err.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Enables real-time cross-device attendance, passcodes & settings sync across all devices
+function doGet(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheets()[0];
+    var data = sheet.getDataRange().getValues();
+    
+    var props = PropertiesService.getScriptProperties();
+    var webAppUrl = props.getProperty("WEBAPP_URL") || "";
+    var repPasscode = props.getProperty("REP_PASSCODE") || "8899";
+    var studentPasscode = props.getProperty("STUDENT_PASSCODE") || "1234";
+    var adminUser = props.getProperty("ADMIN_USER") || "Abhi9av";
+    var adminPass = props.getProperty("ADMIN_PASS") || "Abhi9av@1729";
+    
+    var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
+    var logs = [];
+    
+    for (var i = 1; i < data.length; i++) {
+      var rowDate = data[i][0];
+      if (rowDate instanceof Date) {
+        rowDate = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      }
+      
+      if (String(rowDate).indexOf(todayStr) !== -1 || String(rowDate) === todayStr) {
+        logs.push({
+          dateStr: String(rowDate),
+          timeStr: String(data[i][1]),
+          regNo: String(data[i][2]),
+          name: String(data[i][3]),
+          course: String(data[i][4]),
+          section: String(data[i][5])
+        });
+      }
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({
+      result: "success", 
+      webAppUrl: webAppUrl,
+      repPasscode: repPasscode,
+      studentPasscode: studentPasscode,
+      adminUser: adminUser,
+      adminPass: adminPass,
+      logs: logs
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({result: "error", logs: []}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
