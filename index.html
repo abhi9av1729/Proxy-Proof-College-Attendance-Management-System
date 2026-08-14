@@ -600,25 +600,27 @@ function doGet(e) {
     var adminUser = props.getProperty("ADMIN_USER") || "Abhi9av";
     var adminPass = props.getProperty("ADMIN_PASS") || "Abhi9av@1729";
     
-    var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd");
     var logs = [];
+    var startRow = Math.max(1, data.length - 100);
     
-    for (var i = 1; i < data.length; i++) {
+    for (var i = startRow; i < data.length; i++) {
+      if (!data[i][2]) continue; // Skip empty rows
+      
       var rowDate = data[i][0];
       if (rowDate instanceof Date) {
         rowDate = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      } else {
+        rowDate = String(rowDate).trim();
       }
       
-      if (String(rowDate).indexOf(todayStr) !== -1 || String(rowDate) === todayStr) {
-        logs.push({
-          dateStr: String(rowDate),
-          timeStr: String(data[i][1]),
-          regNo: String(data[i][2]),
-          name: String(data[i][3]),
-          course: String(data[i][4]),
-          section: String(data[i][5])
-        });
-      }
+      logs.push({
+        dateStr: String(rowDate),
+        timeStr: String(data[i][1] || ''),
+        regNo: String(data[i][2] || ''),
+        name: String(data[i][3] || ''),
+        course: String(data[i][4] || ''),
+        section: String(data[i][5] || '')
+      });
     }
     
     var resultObj = {

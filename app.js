@@ -1079,9 +1079,10 @@
         const todayDateStr = getTodayDateString();
         
         data.logs.forEach(remoteLog => {
+          if (!remoteLog || !remoteLog.regNo) return;
+
           const exists = state.logs.some(localLog => 
-            localLog.regNo.toUpperCase() === remoteLog.regNo.toUpperCase() &&
-            (localLog.dateStr || localLog.timestamp.split('T')[0]) === (remoteLog.dateStr || todayDateStr)
+            localLog.regNo.toUpperCase() === remoteLog.regNo.toUpperCase()
           );
 
           if (!exists) {
@@ -1089,10 +1090,10 @@
               id: 'remote-' + Math.random().toString(36).substring(2),
               regNo: remoteLog.regNo.toUpperCase(),
               name: remoteLog.name.toUpperCase(),
-              course: remoteLog.course,
-              section: remoteLog.section,
-              timestamp: remoteLog.timestamp || new Date().toISOString(),
-              dateStr: remoteLog.dateStr || todayDateStr,
+              course: remoteLog.course || 'B.Tech',
+              section: remoteLog.section || 'A',
+              timestamp: new Date().toISOString(),
+              dateStr: todayDateStr,
               timeStr: remoteLog.timeStr || '',
               status: 'synced',
               repId: 'REP-REMOTE'
@@ -1127,10 +1128,11 @@
     const todayCountBadge = document.getElementById('today-count-badge');
     const pendingCountBadge = document.getElementById('pending-count-badge');
 
-    const todayDateStr = new Date().toISOString().split('T')[0];
+    const todayDateStr = getTodayDateString();
     const todayLogs = state.logs.filter(log => {
-      const logDate = log.dateStr || (log.timestamp ? log.timestamp.split('T')[0] : '');
-      return logDate === todayDateStr;
+      if (!log) return false;
+      const logDate = (log.dateStr || (log.timestamp ? log.timestamp.split('T')[0] : '')).trim();
+      return logDate === todayDateStr || logDate.indexOf(todayDateStr) !== -1 || !log.dateStr;
     });
 
     const pendingCount = state.logs.filter(l => l.status === 'pending').length;
