@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>EDP Attendance System | Smart Attendance Portal</title>
+  
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="index.css">
+  
+  <!-- Feather / Lucide Icons SVG CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- QR Generation Libraries & Fallbacks -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  
+  <!-- HTML5 QR Camera Scanner Library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  
+  <!-- Canvas Confetti Library -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">A</div>
+        <div class="brand-info">
+          <h1>Smart Attendance</h1>
+          <p>EDP Attendance System</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <!-- Dark/Light Theme Toggle -->
+        <button id="theme-toggle-btn" class="icon-btn" title="Toggle Theme" aria-label="Toggle Theme">
+          <i data-lucide="moon" id="theme-icon"></i>
+        </button>
+        
+        <!-- Admin Settings Gear Icon (Tier 3 Protected) -->
+        <button id="admin-gear-btn" class="icon-btn" title="Admin Settings" aria-label="Admin Settings">
+          <i data-lucide="settings"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button id="tab-student-btn" class="tab-btn active" data-tab="student">
+        <i data-lucide="qr-code"></i> Student ID
+      </button>
+      <button id="tab-rep-btn" class="tab-btn" data-tab="rep">
+        <i data-lucide="camera"></i> Rep Mode
+      </button>
+    </nav>
+
+    <!-- Main Content Body -->
+    <main class="main-content">
+
+      <!-- ========================================== -->
+      <!-- TIER 1: STUDENT ID GENERATOR (Tab 1)      -->
+      <!-- ========================================== -->
+      <section id="student-panel" class="tab-panel active">
+        
+        <!-- Student Form Card -->
+        <div class="card">
+          <h2 class="card-title">
+            <i data-lucide="user-check"></i> Generate EDP Student ID
+          </h2>
+          
+          <form id="student-id-form">
+            <!-- Full Name Input (Uppercase Enforced) -->
+            <div class="form-group">
+              <label for="student-name">Full Name</label>
+              <input 
+                type="text" 
+                id="student-name" 
+                class="form-control uppercase-input" 
+                placeholder="E.G. ABHINAV SHARMA" 
+                required 
+                autocomplete="off"
+              />
+            </div>
+            
+            <!-- Registration / Roll Number (Uppercase Enforced) -->
+            <div class="form-group">
+              <label for="student-reg">Registration / Roll Number</label>
+              <input 
+                type="text" 
+                id="student-reg" 
+                class="form-control uppercase-input" 
+                required 
+                autocomplete="off"
+              />
+            </div>
+            
+            <div class="form-row">
+              <!-- Course Dropdown -->
+              <div class="form-group">
+                <label for="student-course">Course</label>
+                <select id="student-course" class="form-control">
+                  <option value="B.Tech">B.Tech</option>
+                  <option value="BCA">BCA</option>
+                  <option value="BSc">BSc</option>
+                  <option value="B.Com">B.Com</option>
+                  <option value="BA">BA</option>
+                  <option value="BBA">BBA</option>
+                  <option value="Law">Law</option>
+                  <option value="MCA">MCA</option>
+                  <option value="MBA">MBA</option>
+                </select>
+              </div>
+              
+              <!-- Section Dropdown (A-Z) -->
+              <div class="form-group">
+                <label for="student-section">Section</label>
+                <select id="student-section" class="form-control">
+                  <!-- JS populated A through Z -->
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="generate-id-btn">
+              <i data-lucide="sparkles"></i> Generate Digital ID & QR
+            </button>
+          </form>
+        </div>
+
+        <!-- Generated ID Card Display Card (Hidden until generated) -->
+        <div id="id-card-wrapper" class="id-card-wrapper hidden">
+          <div class="id-card" id="digital-id-card">
+            <div class="id-card-header">
+              <div class="id-college-title">EDP ATTENDANCE ID</div>
+              <div class="id-card-tag">EDP ATTENDANCE</div>
+            </div>
+            
+            <div class="id-card-body">
+              <!-- QR Canvas Box -->
+              <div class="qr-box-container" id="qr-container">
+                <canvas id="qr-canvas"></canvas>
+              </div>
+              
+              <div class="id-details">
+                <div class="id-name" id="card-display-name">STUDENT NAME</div>
+                <div class="id-reg" id="card-display-reg">REGISTRATION NO</div>
+                
+                <div class="id-meta-pills">
+                  <span class="id-pill" id="card-display-course">B.Tech</span>
+                  <span class="id-pill" id="card-display-section">SECTION A</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Download Button -->
+            <button id="download-qr-btn" class="btn btn-success" style="margin-top: 14px;">
+              <i data-lucide="download"></i> Download QR Image
+            </button>
+            
+            <!-- Notice Text -->
+            <div class="id-notice">
+              <i data-lucide="info" style="vertical-align: middle; margin-right: 4px;"></i>
+              <strong>Notice:</strong> Save this QR code to your phone gallery or print it on your ID card. It will be used for EDP Attendance.
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- TIER 2: REPRESENTATIVE SCANNER (Tab 2)    -->
+      <!-- ========================================== -->
+      <section id="rep-panel" class="tab-panel">
+        
+        <!-- Camera Scanner Viewport Card -->
+        <div class="card scanner-card">
+          <div class="logs-header">
+            <h2 class="card-title" style="margin-bottom: 0;">
+              <i data-lucide="qr-code"></i> Live Attendance Scanner
+            </h2>
+            <span id="scanner-status-badge" class="badge badge-warning">Scanner Idle</span>
+          </div>
+
+          <!-- HTML5 Camera Viewport -->
+          <div class="scanner-viewport-wrapper">
+            <div id="reader"></div>
+            
+            <!-- Idle Overlay Placeholder -->
+            <div id="scanner-placeholder" class="scanner-placeholder">
+              <i data-lucide="camera" style="width: 48px; height: 48px;"></i>
+              <p>Camera Stopped</p>
+              <button id="start-camera-btn" class="btn btn-primary" style="width: auto; padding: 8px 18px;">
+                <i data-lucide="play"></i> Start Camera Scan
+              </button>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="scanner-controls">
+            <button id="stop-camera-btn" class="btn btn-secondary hidden">
+              <i data-lucide="square"></i> Stop Camera
+            </button>
+            <button id="switch-camera-btn" class="btn btn-secondary hidden">
+              <i data-lucide="refresh-cw"></i> Switch Camera
+            </button>
+          </div>
+        </div>
+
+        <!-- Today's Attendance Logs Card -->
+        <div class="card">
+          <div class="logs-header">
+            <h2 class="card-title" style="margin-bottom: 0;">
+              <i data-lucide="list"></i> Today's Scans
+            </h2>
+            <div style="display: flex; gap: 6px;">
+              <span id="today-count-badge" class="badge badge-primary">0 Scanned</span>
+              <span id="pending-count-badge" class="badge badge-warning hidden">0 Offline</span>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <button id="sync-now-btn" class="btn btn-secondary" style="padding: 8px 12px; font-size: 12px;">
+              <i data-lucide="cloud-lightning"></i> Sync Backend
+            </button>
+            <button id="manual-entry-btn" class="btn btn-secondary" style="padding: 8px 12px; font-size: 12px;">
+              <i data-lucide="edit-3"></i> Manual Entry
+            </button>
+          </div>
+
+          <!-- Attendance Records List Container -->
+          <div id="scanned-logs-list" class="log-list">
+            <p style="text-align: center; color: var(--text-muted); padding: 16px; font-size: 13px;">
+              No attendance marked today yet.
+            </p>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- FULL-SCREEN FLASH OVERLAYS                -->
+  <!-- ========================================== -->
+
+  <!-- Bright GREEN Success Flash Overlay (1.5 seconds) -->
+  <div id="flash-success-overlay" class="scan-flash-overlay success-flash">
+    <div class="flash-badge-icon">
+      <i data-lucide="check"></i>
+    </div>
+    <div class="flash-title">ATTENDANCE MARKED!</div>
+    <div id="flash-success-name" class="flash-student-name">STUDENT NAME</div>
+    <div id="flash-success-reg" class="flash-student-reg">2026BCSE1042</div>
+  </div>
+
+  <!-- Vibrant ORANGE Duplicate Flash Overlay (1.5 seconds) -->
+  <div id="flash-duplicate-overlay" class="scan-flash-overlay duplicate-flash">
+    <div class="flash-badge-icon">
+      <i data-lucide="alert-triangle"></i>
+    </div>
+    <div class="flash-title">ALREADY MARKED TODAY!</div>
+    <div id="flash-duplicate-name" class="flash-student-name">STUDENT NAME</div>
+    <div id="flash-duplicate-reg" class="flash-student-reg">2026BCSE1042</div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODALS                                     -->
+  <!-- ========================================== -->
+
+  <!-- Tier 3: Admin Auth & Settings Modal -->
+  <div id="admin-modal" class="modal-overlay">
+    <div class="modal-card">
+      
+      <!-- Admin Login View -->
+      <div id="admin-login-view">
+        <div class="modal-header">
+          <h3><i data-lucide="shield-check"></i> Admin Protection</h3>
+          <button class="modal-close" data-close-modal="admin-modal"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Enter Admin credentials to configure system settings.
+          </p>
+          
+          <div class="form-group">
+            <label for="admin-login-user">Admin Username</label>
+            <input type="text" id="admin-login-user" class="form-control" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="admin-login-pass">Admin Password</label>
+            <input type="password" id="admin-login-pass" class="form-control" autocomplete="off" />
+          </div>
+          
+          <button id="admin-login-submit-btn" class="btn btn-primary" style="margin-top: 10px;">
+            <i data-lucide="lock"></i> Authenticate Admin
+          </button>
+        </div>
+      </div>
+
+      <!-- Admin Config Settings View (unlocked) -->
+      <div id="admin-settings-view" class="hidden">
+        <div class="modal-header">
+          <h3><i data-lucide="sliders"></i> Admin Settings</h3>
+          <button class="modal-close" data-close-modal="admin-modal"><i data-lucide="x"></i></button>
+        </div>
+        <div class="modal-body">
+          <form id="admin-config-form">
+            <!-- Google Apps Script Web App URL -->
+            <div class="form-group">
+              <label for="cfg-webapp-url">Google Web App URL</label>
+              <input 
+                type="url" 
+                id="cfg-webapp-url" 
+                class="form-control" 
+                autocomplete="off"
+              />
+              <span style="font-size: 10.5px; color: var(--text-muted);">
+                HTTP POST target for live scan synchronization.
+              </span>
+            </div>
+
+            <!-- Representative Passcode -->
+            <div class="form-group">
+              <label for="cfg-rep-passcode">Representative Passcode</label>
+              <input 
+                type="text" 
+                id="cfg-rep-passcode" 
+                class="form-control" 
+                required
+                autocomplete="off"
+              />
+            </div>
+
+            <!-- Student ID Mode Passcode -->
+            <div class="form-group">
+              <label for="cfg-student-passcode">Student ID Mode Passcode</label>
+              <input 
+                type="text" 
+                id="cfg-student-passcode" 
+                class="form-control" 
+                required
+                autocomplete="off"
+              />
+            </div>
+
+            <!-- Change Admin Credentials -->
+            <div style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 12px;">
+              <h4 style="font-size: 12px; text-transform: uppercase; color: var(--primary); margin-bottom: 10px;">
+                Update Admin Credentials
+              </h4>
+              <div class="form-group">
+                <label for="cfg-admin-user">New Admin Username</label>
+                <input type="text" id="cfg-admin-user" class="form-control" autocomplete="off" />
+              </div>
+              <div class="form-group">
+                <label for="cfg-admin-pass">New Admin Password</label>
+                <input type="password" id="cfg-admin-pass" class="form-control" autocomplete="off" />
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 14px;">
+              <i data-lucide="save"></i> Save Settings to LocalStorage
+            </button>
+          </form>
+
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 14px;">
+            <button id="view-gas-script-btn" class="btn btn-secondary" style="font-size: 12px;">
+              <i data-lucide="code"></i> Copy Google Apps Script Code
+            </button>
+            <button id="export-csv-btn" class="btn btn-secondary" style="font-size: 12px;">
+              <i data-lucide="file-text"></i> Export Attendance Records (CSV)
+            </button>
+            <button id="clear-all-data-btn" class="btn btn-secondary" style="font-size: 12px; color: var(--warning);">
+              <i data-lucide="trash-2"></i> Clear Local Attendance & Saved QRs
+            </button>
+            <button id="admin-logout-btn" class="btn btn-secondary" style="font-size: 12px; color: var(--danger);">
+              <i data-lucide="log-out"></i> Lock Admin Settings
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Tier 1: Student ID Passcode Challenge Modal -->
+  <div id="student-auth-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i data-lucide="key"></i> Student ID Passcode</h3>
+        <button class="modal-close" data-close-modal="student-auth-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Enter the Student Passcode to generate your EDP Student ID & QR code.
+        </p>
+        
+        <div class="form-group">
+          <label for="student-passcode-input">Passcode</label>
+          <input 
+            type="password" 
+            id="student-passcode-input" 
+            class="form-control" 
+            maxlength="10"
+            autocomplete="off"
+          />
+        </div>
+        
+        <button id="unlock-student-btn" class="btn btn-primary" style="margin-top: 10px;">
+          <i data-lucide="unlock"></i> Access Student ID Mode
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Tier 2: Rep Passcode Challenge Modal -->
+  <div id="rep-auth-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i data-lucide="key"></i> Representative Passcode</h3>
+        <button class="modal-close" data-close-modal="rep-auth-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Rep Mode is protected. Enter the 4-digit Representative Passcode to launch scanner.
+        </p>
+        
+        <div class="form-group">
+          <label for="rep-passcode-input">Passcode</label>
+          <input 
+            type="password" 
+            id="rep-passcode-input" 
+            class="form-control" 
+            maxlength="10"
+            autocomplete="off"
+          />
+        </div>
+        
+        <button id="unlock-rep-btn" class="btn btn-primary" style="margin-top: 10px;">
+          <i data-lucide="unlock"></i> Access Rep Mode Scanner
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Manual Attendance Entry Modal -->
+  <div id="manual-entry-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i data-lucide="user-plus"></i> Manual Attendance Entry</h3>
+        <button class="modal-close" data-close-modal="manual-entry-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="manual-attendance-form">
+          <div class="form-group">
+            <label for="manual-name">Student Full Name</label>
+            <input type="text" id="manual-name" class="form-control uppercase-input" placeholder="FULL NAME" required />
+          </div>
+          <div class="form-group">
+            <label for="manual-reg">Registration / Roll Number</label>
+            <input type="text" id="manual-reg" class="form-control uppercase-input" required />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="manual-course">Course</label>
+              <select id="manual-course" class="form-control">
+                <option value="B.Tech">B.Tech</option>
+                <option value="BCA">BCA</option>
+                <option value="BSc">BSc</option>
+                <option value="B.Com">B.Com</option>
+                <option value="BA">BA</option>
+                <option value="BBA">BBA</option>
+                <option value="Law">Law</option>
+                <option value="MCA">MCA</option>
+                <option value="MBA">MBA</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="manual-section">Section</label>
+              <select id="manual-section" class="form-control">
+                <!-- JS populated -->
+              </select>
+            </div>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="margin-top: 10px;">
+            <i data-lucide="check-circle"></i> Mark Attendance Manually
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Google Apps Script Helper Code Modal -->
+  <div id="gas-script-modal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3><i data-lucide="file-code"></i> Google Apps Script Code</h3>
+        <button class="modal-close" data-close-modal="gas-script-modal"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
+          <ol style="padding-left: 18px;">
+            <li>Open your <strong>Google Sheet</strong> and click <strong>Extensions &gt; Apps Script</strong>.</li>
+            <li>Paste the updated code below and save (Ctrl + S).</li>
+            <li>Click <strong>Deploy &gt; New deployment</strong> (or <strong>Manage deployments &gt; Edit &gt; New version</strong>).</li>
+            <li>Set <strong>Execute as:</strong> <code>Me</code> and <strong>Who has access:</strong> <code>Anyone</code>.</li>
+            <li>Copy the Web App URL and paste it into Admin Settings!</li>
+          </ol>
+        </div>
+        
+        <pre class="code-block" id="gas-code-text">
+function doPost(e) {
+  try {
+    var data = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        data = JSON.parse(e.postData.contents);
+      } catch (err) {
+        data = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      data = e.parameter;
+    }
+    
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      return ContentService.createTextOutput(JSON.stringify({
+        result: "error", 
+        message: "Spreadsheet not found. Open script via Extensions > Apps Script inside Google Sheet."
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Get the very 1st sheet tab safely (avoids null tab name errors)
+    var sheet = ss.getSheets()[0];
+    
+    var now = new Date();
+    var dateStr = data.dateStr || Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    var timeStr = data.timeStr || Utilities.formatDate(now, Session.getScriptTimeZone(), "HH:mm:ss");
+    
+    // Append row to columns A-F: Date | Time | Registration No | Student Name | Course | Section
+    sheet.appendRow([
+      dateStr,
+      timeStr,
+      data.regNo || "N/A",
+      data.name || "N/A",
+      data.course || "N/A",
+      data.section || "N/A"
+    ]);
+    
+    return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({result: "error", message: err.toString()}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+        </pre>
+        
+        <button id="copy-gas-code-btn" class="btn btn-primary" style="margin-top: 12px;">
+          <i data-lucide="copy"></i> Copy Script to Clipboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Application Logic JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
