@@ -176,6 +176,20 @@
     return `${year}-${month}-${day}`;
   }
 
+  function parseToDateString(str) {
+    if (!str) return getTodayDateString();
+    const s = String(str).trim();
+    if (s.length === 10 && s.indexOf('-') === 4) return s;
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    return getTodayDateString();
+  }
+
   function initSectionDropdowns() {
     const sections = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     ['student-section', 'manual-section'].forEach(id => {
@@ -1079,19 +1093,25 @@
         const todayDateStr = getTodayDateString();
         
         data.logs.forEach(remoteLog => {
-          if (!remoteLog || !remoteLog.regNo) return;
+          if (!remoteLog || !remoteLog.regNo || remoteLog.regNo === 'N/A') return;
+
+          const remoteRegNo = remoteLog.regNo.toUpperCase();
+          const parsedLogDate = parseToDateString(remoteLog.dateStr);
+
+          // Only import remote logs for today
+          if (parsedLogDate !== todayDateStr) return;
 
           const exists = state.logs.some(localLog => 
-            localLog.regNo.toUpperCase() === remoteLog.regNo.toUpperCase()
+            localLog.regNo.toUpperCase() === remoteRegNo
           );
 
           if (!exists) {
             state.logs.unshift({
               id: 'remote-' + Math.random().toString(36).substring(2),
-              regNo: remoteLog.regNo.toUpperCase(),
-              name: remoteLog.name.toUpperCase(),
-              course: remoteLog.course || 'B.Tech',
-              section: remoteLog.section || 'A',
+              regNo: remoteRegNo,
+              name: (remoteLog.name && remoteLog.name !== 'N/A') ? remoteLog.name.toUpperCase() : 'STUDENT',
+              course: (remoteLog.course && remoteLog.course !== 'N/A') ? remoteLog.course : 'B.Tech',
+              section: (remoteLog.section && remoteLog.section !== 'N/A') ? remoteLog.section : 'A',
               timestamp: new Date().toISOString(),
               dateStr: todayDateStr,
               timeStr: remoteLog.timeStr || '',

@@ -606,15 +606,22 @@ function doGet(e) {
     for (var i = startRow; i < data.length; i++) {
       if (!data[i][2]) continue; // Skip empty rows
       
-      var rowDate = data[i][0];
-      if (rowDate instanceof Date) {
-        rowDate = Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      var rawDate = data[i][0];
+      var cleanDate = "";
+      if (rawDate instanceof Date) {
+        cleanDate = Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
       } else {
-        rowDate = String(rowDate).trim();
+        var str = String(rawDate).trim();
+        var d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          cleanDate = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd");
+        } else {
+          cleanDate = str;
+        }
       }
       
       logs.push({
-        dateStr: String(rowDate),
+        dateStr: cleanDate,
         timeStr: String(data[i][1] || ''),
         regNo: String(data[i][2] || ''),
         name: String(data[i][3] || ''),
