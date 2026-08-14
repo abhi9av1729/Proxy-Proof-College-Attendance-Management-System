@@ -535,8 +535,21 @@ function doPost(e) {
       data = e.parameter;
     }
     
-    // Global Clear Logs signal across all devices
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      return ContentService.createTextOutput(JSON.stringify({
+        result: "error", 
+        message: "Spreadsheet not found."
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var sheet = ss.getSheets()[0];
+    
+    // Global Clear Logs: Deletes all attendance rows from Google Sheet (except Header Row 1) & signals all devices
     if (data.action === "clearLogs") {
+      var lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        sheet.deleteRows(2, lastRow - 1);
+      }
       var props = PropertiesService.getScriptProperties();
       props.setProperty("LAST_CLEARED_AT", String(data.timestamp || Date.now()));
       return ContentService.createTextOutput(JSON.stringify({result: "success"}))
@@ -554,16 +567,6 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({result: "success"}))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (!ss) {
-      return ContentService.createTextOutput(JSON.stringify({
-        result: "error", 
-        message: "Spreadsheet not found."
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-    
-    var sheet = ss.getSheets()[0];
     var now = new Date();
     var dateStr = data.dateStr || Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyy-MM-dd");
     var timeStr = data.timeStr || Utilities.formatDate(now, Session.getScriptTimeZone(), "HH:mm:ss");

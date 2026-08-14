@@ -736,7 +736,15 @@
   })();
 
   function generateStudentQR(data) {
-    const jsonPayload = JSON.stringify(data);
+    // Guarantee 100% unique QR payload for every student
+    const uniqueStudentPayload = {
+      uid: `EDP-${data.regNo}`,
+      regNo: data.regNo,
+      name: data.name,
+      course: data.course,
+      section: data.section
+    };
+    const jsonPayload = JSON.stringify(uniqueStudentPayload);
     const canvas = document.getElementById('qr-canvas');
     if (!canvas) return;
 
