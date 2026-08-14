@@ -535,6 +535,14 @@ function doPost(e) {
       data = e.parameter;
     }
     
+    // Global Clear Logs signal across all devices
+    if (data.action === "clearLogs") {
+      var props = PropertiesService.getScriptProperties();
+      props.setProperty("LAST_CLEARED_AT", String(data.timestamp || Date.now()));
+      return ContentService.createTextOutput(JSON.stringify({result: "success"}))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
     // Save ALL Config & Credentials globally across all devices
     if (data.action === "saveConfig") {
       var props = PropertiesService.getScriptProperties();
@@ -585,6 +593,7 @@ function doGet(e) {
     var data = sheet.getDataRange().getValues();
     
     var props = PropertiesService.getScriptProperties();
+    var lastClearedAt = props.getProperty("LAST_CLEARED_AT") || "0";
     var webAppUrl = props.getProperty("WEBAPP_URL") || "";
     var repPasscode = props.getProperty("REP_PASSCODE") || "8899";
     var studentPasscode = props.getProperty("STUDENT_PASSCODE") || "1234";
@@ -612,16 +621,31 @@ function doGet(e) {
       }
     }
     
-    return ContentService.createTextOutput(JSON.stringify({
+    var resultObj = {
       result: "success", 
+      lastClearedAt: lastClearedAt,
       webAppUrl: webAppUrl,
       repPasscode: repPasscode,
       studentPasscode: studentPasscode,
       adminUser: adminUser,
       adminPass: adminPass,
       logs: logs
-    })).setMimeType(ContentService.MimeType.JSON);
+    };
+    
+    // Support JSONP for 100% bulletproof cross-origin fetching on all mobile browsers
+    if (e && e.parameter && e.parameter.callback) {
+      var cb = e.parameter.callback;
+      return ContentService.createTextOutput(cb + '(' + JSON.stringify(resultObj) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify(resultObj))
+      .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
+    if (e && e.parameter && e.parameter.callback) {
+      return ContentService.createTextOutput(e.parameter.callback + '({"result":"error","logs":[]})')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
     return ContentService.createTextOutput(JSON.stringify({result: "error", logs: []}))
       .setMimeType(ContentService.MimeType.JSON);
   }

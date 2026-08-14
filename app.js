@@ -128,11 +128,18 @@
       window.lucide.createIcons();
     }
 
-    // Auto-sync offline logs if network is online
+    // Auto-sync offline logs & start live multi-device polling loop
     if (navigator.onLine) {
       syncPendingLogs();
+      fetchTodayLogsFromSheet();
     }
-    window.addEventListener('online', syncPendingLogs);
+    window.addEventListener('online', () => {
+      syncPendingLogs();
+      fetchTodayLogsFromSheet();
+    });
+
+    // Continuously poll Google Sheets every 5 seconds for instant multi-device sync
+    setInterval(fetchTodayLogsFromSheet, 5000);
   });
 
   // --- THEME ENGINE ---
@@ -160,7 +167,15 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
-  // --- HELPER: SECTION DROPDOWNS & UPPERCASE ENFORCEMENT ---
+  // --- HELPER: LOCAL CALENDAR DATE & DROPDOWNS ---
+  function getTodayDateString() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   function initSectionDropdowns() {
     const sections = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
     ['student-section', 'manual-section'].forEach(id => {
@@ -884,9 +899,9 @@
     const course = data.course || 'B.Tech';
     const section = data.section || 'A';
 
-    const todayDateStr = new Date().toISOString().split('T')[0];
+    const todayDateStr = getTodayDateString();
 
-    // Check if student was ALREADY scanned today
+    // Check if student was ALREADY scanned today (resets automatically every calendar day)
     const alreadyScanned = state.logs.some(log => {
       const logDate = log.dateStr || (log.timestamp ? log.timestamp.split('T')[0] : '');
       return logDate === todayDateStr && log.regNo.toUpperCase() === regNo;
@@ -925,7 +940,7 @@
       overlay.classList.add('active');
 
       const now = new Date();
-      const todayDateStr = now.toISOString().split('T')[0];
+      const todayDateStr = getTodayDateString();
       const timeStr = now.toLocaleTimeString([], { hour12: false });
 
       // Record new attendance entry matching sheet layout: Date, Time, RegNo, Name, Course, Section
@@ -1013,69 +1028,94 @@
     });
   }
 
-  // --- LIVE CROSS-DEVICE LOG FETCHING ---
+  // --- LIVE CROSS-DEVICE LOG & PASSCODE FETCHING (JSONP BULLETPROOF ENGINE) ---
   function fetchTodayLogsFromSheet() {
     if (!state.webAppUrl || !navigator.onLine) return;
 
-    const fetchUrl = `${state.webAppUrl}?action=getTodayLogs&t=${Date.now()}`;
+    const cbName = '__att_sync_cb_' + Date.now();
+    window[cbName] = function(data) {
+      try {
+        delete window[cbName];
+        const el = document.getElementById(cbName);
+        if (el) el.remove();
+      } catch (e) {}
 
-    fetch(fetchUrl)
-      .then(res => res.json())
-      .then(data => {
-        // Sync ALL remote config & passcodes if changed on another device
-        if (data && data.repPasscode) {
-          state.repPasscode = data.repPasscode;
-          localStorage.setItem(STORAGE_KEYS.REP_PASSCODE, data.repPasscode);
-        }
-        if (data && data.studentPasscode) {
-          state.studentPasscode = data.studentPasscode;
-          localStorage.setItem(STORAGE_KEYS.STUDENT_PASSCODE, data.studentPasscode);
-        }
-        if (data && data.adminUser) {
-          state.adminUser = data.adminUser;
-          localStorage.setItem(STORAGE_KEYS.ADMIN_USER, data.adminUser);
-        }
-        if (data && data.adminPass) {
-          state.adminPass = data.adminPass;
-          localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, data.adminPass);
-        }
-        if (data && data.webAppUrl && data.webAppUrl !== state.webAppUrl) {
-          state.webAppUrl = data.webAppUrl;
-          localStorage.setItem(STORAGE_KEYS.WEBAPP_URL, data.webAppUrl);
-        }
+      if (!data || data.result !== 'success') return;
 
-        if (data && data.logs && Array.isArray(data.logs)) {
-          const todayDateStr = new Date().toISOString().split('T')[0];
-          
-          data.logs.forEach(remoteLog => {
-            const exists = state.logs.some(localLog => 
-              localLog.regNo.toUpperCase() === remoteLog.regNo.toUpperCase() &&
-              (localLog.dateStr || localLog.timestamp.split('T')[0]) === (remoteLog.dateStr || todayDateStr)
-            );
-
-            if (!exists) {
-              state.logs.unshift({
-                id: 'remote-' + Math.random().toString(36).substring(2),
-                regNo: remoteLog.regNo.toUpperCase(),
-                name: remoteLog.name.toUpperCase(),
-                course: remoteLog.course,
-                section: remoteLog.section,
-                timestamp: remoteLog.timestamp || new Date().toISOString(),
-                dateStr: remoteLog.dateStr || todayDateStr,
-                timeStr: remoteLog.timeStr || '',
-                status: 'synced',
-                repId: 'REP-REMOTE'
-              });
-            }
-          });
-
+      // Check if Admin triggered a global logs clear on another device
+      if (data.lastClearedAt) {
+        const localLastClear = localStorage.getItem('att_last_cleared_at') || '0';
+        if (String(data.lastClearedAt) > String(localLastClear)) {
+          localStorage.setItem('att_last_cleared_at', String(data.lastClearedAt));
+          state.logs = [];
           saveLogs();
           renderScannedLogs();
         }
-      })
-      .catch(err => {
-        // Silently ignore CORS/network GET errors if plain text
-      });
+      }
+
+      // Sync ALL remote config & passcodes if changed on another device
+      if (data.repPasscode) {
+        state.repPasscode = data.repPasscode;
+        localStorage.setItem(STORAGE_KEYS.REP_PASSCODE, data.repPasscode);
+      }
+      if (data.studentPasscode) {
+        state.studentPasscode = data.studentPasscode;
+        localStorage.setItem(STORAGE_KEYS.STUDENT_PASSCODE, data.studentPasscode);
+      }
+      if (data.adminUser) {
+        state.adminUser = data.adminUser;
+        localStorage.setItem(STORAGE_KEYS.ADMIN_USER, data.adminUser);
+      }
+      if (data.adminPass) {
+        state.adminPass = data.adminPass;
+        localStorage.setItem(STORAGE_KEYS.ADMIN_PASS, data.adminPass);
+      }
+      if (data.webAppUrl && data.webAppUrl !== state.webAppUrl) {
+        state.webAppUrl = data.webAppUrl;
+        localStorage.setItem(STORAGE_KEYS.WEBAPP_URL, data.webAppUrl);
+      }
+
+      if (data.logs && Array.isArray(data.logs)) {
+        const todayDateStr = getTodayDateString();
+        
+        data.logs.forEach(remoteLog => {
+          const exists = state.logs.some(localLog => 
+            localLog.regNo.toUpperCase() === remoteLog.regNo.toUpperCase() &&
+            (localLog.dateStr || localLog.timestamp.split('T')[0]) === (remoteLog.dateStr || todayDateStr)
+          );
+
+          if (!exists) {
+            state.logs.unshift({
+              id: 'remote-' + Math.random().toString(36).substring(2),
+              regNo: remoteLog.regNo.toUpperCase(),
+              name: remoteLog.name.toUpperCase(),
+              course: remoteLog.course,
+              section: remoteLog.section,
+              timestamp: remoteLog.timestamp || new Date().toISOString(),
+              dateStr: remoteLog.dateStr || todayDateStr,
+              timeStr: remoteLog.timeStr || '',
+              status: 'synced',
+              repId: 'REP-REMOTE'
+            });
+          }
+        });
+
+        saveLogs();
+        renderScannedLogs();
+      }
+    };
+
+    // Inject JSONP script tag (bypasses browser CORS restrictions 100%)
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.src = `${state.webAppUrl}?action=getTodayLogs&callback=${cbName}&t=${Date.now()}`;
+    script.onerror = function() {
+      try {
+        delete window[cbName];
+        if (script.parentNode) script.parentNode.removeChild(script);
+      } catch (e) {}
+    };
+    document.body.appendChild(script);
   }
 
   function saveLogs() {
@@ -1304,6 +1344,22 @@
   }
 
   function clearAllAppData() {
+    // Send global clear signal to cloud backend
+    if (state.webAppUrl && navigator.onLine) {
+      const nowTs = String(Date.now());
+      localStorage.setItem('att_last_cleared_at', nowTs);
+      
+      fetch(state.webAppUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'clearLogs',
+          timestamp: nowTs
+        })
+      }).catch(err => console.warn('Global logs clear sync failed:', err));
+    }
+
     // Remove local storage items for student QR and attendance logs
     localStorage.removeItem(STORAGE_KEYS.SAVED_STUDENT);
     localStorage.removeItem(STORAGE_KEYS.ATTENDANCE_LOGS);
@@ -1325,7 +1381,7 @@
     // Re-render empty log list
     renderScannedLogs();
 
-    alert('All local attendance records and saved QR data have been cleared!');
+    alert('All local and global attendance records have been cleared across all devices!');
   }
 
 })();
