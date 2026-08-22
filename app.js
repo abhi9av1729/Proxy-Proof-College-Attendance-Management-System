@@ -26,14 +26,14 @@
     WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbzq-dUY3e88Jcs5M1ir3TUFpRDKhqDc-gBcQtkviPgzpMRsnAYozMrUNu5NCJEViFwP8Q/exec'
   };
 
-  // Application State
+  // Application State (Defaults to clean system credentials)
   let state = {
     theme: localStorage.getItem(STORAGE_KEYS.THEME) || 'dark',
-    adminUser: localStorage.getItem(STORAGE_KEYS.ADMIN_USER) || DEFAULTS.ADMIN_USER,
-    adminPass: localStorage.getItem(STORAGE_KEYS.ADMIN_PASS) || DEFAULTS.ADMIN_PASS,
-    repPasscode: localStorage.getItem(STORAGE_KEYS.REP_PASSCODE) || DEFAULTS.REP_PASSCODE,
-    studentPasscode: localStorage.getItem(STORAGE_KEYS.STUDENT_PASSCODE) || DEFAULTS.STUDENT_PASSCODE,
-    webAppUrl: localStorage.getItem(STORAGE_KEYS.WEBAPP_URL) || DEFAULTS.WEBAPP_URL,
+    adminUser: DEFAULTS.ADMIN_USER,
+    adminPass: DEFAULTS.ADMIN_PASS,
+    repPasscode: DEFAULTS.REP_PASSCODE,
+    studentPasscode: DEFAULTS.STUDENT_PASSCODE,
+    webAppUrl: DEFAULTS.WEBAPP_URL,
     
     isAdminAuthenticated: false,
     isRepUnlocked: false,
