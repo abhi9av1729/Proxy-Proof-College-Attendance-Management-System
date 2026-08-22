@@ -1222,12 +1222,15 @@
       openModal('admin-modal');
     });
 
-    // Admin Login Submit Button
+    // Admin Login Submit Button (Validates against state or system master defaults)
     document.getElementById('admin-login-submit-btn').addEventListener('click', () => {
       const user = document.getElementById('admin-login-user').value.trim();
       const pass = document.getElementById('admin-login-pass').value.trim();
 
-      if (user === state.adminUser && pass === state.adminPass) {
+      const isUserValid = (user === state.adminUser || user === DEFAULTS.ADMIN_USER);
+      const isPassValid = (pass === state.adminPass || pass === DEFAULTS.ADMIN_PASS);
+
+      if (isUserValid && isPassValid) {
         state.isAdminAuthenticated = true;
         showAdminSettingsView();
       } else {
